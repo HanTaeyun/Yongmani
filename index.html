@@ -2,9 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>떡 먹은 용만이 (Final Fixed)</title>
+    <title>떡 먹은 용만이 (Motion Fix)</title>
     <style>
-        /* 폰트 임포트 */
+        /* 폰트 및 기본 변수 설정 */
         @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap');
         
         :root {
@@ -14,7 +14,6 @@
 
         body {
             font-family: 'Jua', sans-serif;
-            /* 배경: 화사한 솜사탕 그라데이션 */
             background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
             display: flex;
             flex-direction: column;
@@ -27,7 +26,6 @@
             user-select: none;
         }
 
-        /* 메인 게임 제목 (화면 상단) */
         h1.main-title { 
             margin: 0 0 10px 0;
             font-family: 'Black Han Sans', sans-serif;
@@ -59,6 +57,7 @@
         .btn-mid  { background: #f1c40f; }
         .btn-hard { background: #ff6b6b; }
         .btn-replay { background: #0984e3; }
+        .btn-watch { background: #6c5ce7; }
         .btn-home { background: #636e72; }
 
         /* --- 오버레이 (시작/결과) --- */
@@ -83,16 +82,14 @@
             text-align: center;
             box-shadow: 0 20px 50px rgba(0,0,0,0.15);
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 5px solid white; /* 흰색 테두리 */
+            border: 5px solid white;
         }
         @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* 카드 내부 텍스트 스타일 */
         .card h1 {
             font-family: 'Black Han Sans', sans-serif;
             font-size: 45px;
             margin: 0 0 15px 0;
-            /* 진한 색상 */
             color: #2d3436; 
             text-shadow: none;
         }
@@ -148,10 +145,20 @@
             height: 100%; width: auto;
             object-fit: contain;
             filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+            transition: filter 0.3s;
         }
         .character-img.flipped { transform: scaleX(-1); }
 
-        /* --- 떡 --- */
+        /* 리플레이 시 빛나는 효과 */
+        .wrapper.glowing .character-img {
+            animation: goldenGlow 0.8s infinite alternate;
+        }
+        @keyframes goldenGlow {
+            0% { filter: drop-shadow(0 0 10px #ffeaa7) brightness(1.1); }
+            100% { filter: drop-shadow(0 0 30px #fdcb6e) brightness(1.3); }
+        }
+
+        /* --- 떡 (정답 아이템) --- */
         .item {
             width: 70px; height: 70px;
             position: absolute;
@@ -169,8 +176,7 @@
         /* --- 번호표 --- */
         .number-badge {
             position: absolute;
-            top: -45px;
-            left: 50%;
+            top: -45px; left: 50%;
             transform: translateX(-50%) scale(0);
             width: 50px; height: 50px;
             background: #fff200;
@@ -185,6 +191,7 @@
             transition: transform 0.3s;
         }
         .number-badge.show { transform: translateX(-50%) scale(1); }
+
 
         /* --- 애니메이션 --- */
         .wrapper.lift .character-container { transform: translateY(-160px); transition: transform 0.3s; }
@@ -236,6 +243,7 @@
             <h1 id="resultTitle">결과</h1>
             <p id="resultText">...</p>
             <div class="btn-group">
+                <button class="modern-btn btn-watch" onclick="startReplay()">🎬 리플레이</button>
                 <button class="modern-btn btn-replay" onclick="replayGame()">🔄 다시 하기</button>
                 <button class="modern-btn btn-home" onclick="location.reload()">🏠 처음으로</button>
             </div>
@@ -263,7 +271,7 @@
         const IMG_ROLL    = 'https://i.ibb.co/xSQ2tcRV/yongmani-roll.png';  
         const IMG_TTEOK   = 'https://i.ibb.co/FkB0XC6z/pngtree-3d-mochi-illustration-png-image-10276564-1.png';
 
-        // 오디오
+        // 오디오 시스템
         let audioCtx;
         function initAudio() {
             if (!audioCtx) {
@@ -286,7 +294,6 @@
             osc.start();
             osc.stop(audioCtx.currentTime + duration + 0.1);
         }
-
         function playMoveSound() { 
             if(!audioCtx) return;
             const osc = audioCtx.createOscillator();
@@ -301,12 +308,10 @@
             osc.start();
             osc.stop(audioCtx.currentTime + 0.15);
         }
-
         function playWinSound() { 
             const notes = [523, 659, 784, 1046, 1318];
             notes.forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.4), i * 120));
         }
-
         function playLoseSound() { 
             if(!audioCtx) return;
             const osc = audioCtx.createOscillator();
@@ -328,10 +333,14 @@
         let isShuffling = false;
         let canSelect = false;
         let currentSlots = [];
+        let isReplaying = false;
+
+        let moveHistory = []; 
 
         function initGame(num) {
             initAudio();
             totalChars = num;
+            moveHistory = []; 
             
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('resultScreen').classList.add('hidden');
@@ -351,7 +360,6 @@
                 wrapper.style.left = `${i * MOVE_UNIT}px`;
                 wrapper.onclick = () => selectChar(i);
 
-                // 캐릭터
                 const charContainer = document.createElement('div');
                 charContainer.className = 'character-container';
                 const img = document.createElement('img');
@@ -359,17 +367,15 @@
                 img.className = 'character-img';
                 charContainer.appendChild(img);
                 
-                // 떡
                 const item = document.createElement('div');
                 item.className = 'item';
                 const tteokImg = document.createElement('img');
                 tteokImg.src = IMG_TTEOK;
                 item.appendChild(tteokImg);
 
-                // 번호표
                 const badge = document.createElement('div');
                 badge.className = 'number-badge';
-                
+
                 wrapper.appendChild(charContainer);
                 wrapper.appendChild(item);
                 wrapper.appendChild(badge);
@@ -387,11 +393,11 @@
             isShuffling = true;
             canSelect = false;
             hideBadges(); 
+            document.querySelectorAll('.wrapper').forEach(w => w.classList.remove('glowing'));
 
             correctIndex = Math.floor(Math.random() * totalChars);
             const target = document.getElementById(`char${correctIndex}`);
             
-            // 떡 보여주기 (Lift)
             target.querySelector('.item').style.display = 'block';
             target.classList.add('lift');
             playMoveSound();
@@ -399,7 +405,6 @@
             setTimeout(async () => {
                 target.classList.remove('lift');
                 
-                // 떡 숨기기
                 setTimeout(() => {
                     target.querySelector('.item').style.display = 'none';
                 }, 300);
@@ -407,7 +412,8 @@
                 msg.textContent = "섞는 중... 눈을 크게 뜨세요!";
                 
                 const rounds = totalChars * 2 + 3; 
-                await shuffleChaos(rounds, ANIM_TIME + 50);
+                moveHistory = [];
+                await shuffleChaos(rounds, ANIM_TIME + 50, true); 
 
                 isShuffling = false;
                 canSelect = true;
@@ -417,26 +423,110 @@
             }, 1500);
         }
 
-        function replayGame() {
-            initGame(totalChars);
+        // --- 리플레이 기능 ---
+        async function startReplay() {
+            if (isShuffling) return; 
+            
+            isReplaying = true;
+            isShuffling = true; 
+            canSelect = false; 
+            
+            document.getElementById('resultScreen').classList.add('hidden');
+            const msg = document.getElementById('statusMessage');
+            msg.textContent = "🎬 리플레이 중...";
+            msg.style.color = "#a29bfe"; 
+
+            // 1. 상태 초기화
+            hideBadges();
+            for(let i=0; i<totalChars; i++) {
+                currentSlots[i] = i; 
+                const w = document.getElementById(`char${i}`);
+                resetCharState(w);
+                w.classList.remove('glowing'); 
+                w.style.transform = `translateX(0px)`; 
+                w.querySelector('.item').style.display = 'none';
+            }
+            void document.body.offsetWidth;
+
+            // 2. 정답 용만이에게 빛나는 효과
+            const correctWrapper = document.getElementById(`char${correctIndex}`);
+            correctWrapper.classList.add('glowing');
+
+            // 3. 기록 재생
+            for (let r = 0; r < moveHistory.length; r++) {
+                for(let i=0; i<totalChars; i++) resetCharState(document.getElementById(`char${i}`));
+                void document.body.offsetWidth;
+
+                const targetSlots = moveHistory[r]; 
+
+                playMoveSound();
+                for(let i=0; i<totalChars; i++) {
+                    const currentSlot = currentSlots[i];
+                    const nextSlot = targetSlots[i];
+                    
+                    if(currentSlot !== nextSlot) {
+                        applyMove(document.getElementById(`char${i}`), nextSlot);
+                    }
+                }
+                
+                currentSlots = [...targetSlots];
+                await new Promise(res => setTimeout(res, ANIM_TIME + 50));
+            }
+
+            // 4. 리플레이 종료
+            for(let i=0; i<totalChars; i++) resetCharState(document.getElementById(`char${i}`));
+            
+            correctWrapper.classList.remove('glowing'); 
+
+            msg.textContent = "리플레이 종료";
+            
+            // 상태값 초기화
+            isReplaying = false;
+            isShuffling = false; 
+            
+            setTimeout(() => {
+                 document.getElementById('resultScreen').classList.remove('hidden');
+                 showBadges(); 
+            }, 500);
         }
 
-        async function shuffleChaos(rounds, waitTime) {
+        function replayGame() {
+            initGame(totalChars); 
+        }
+
+        // --- 셔플 로직 ---
+        async function shuffleChaos(rounds, waitTime, recordMode = false) {
             for(let r=0; r<rounds; r++) {
+                // 리셋 및 강제 리플로우
                 for(let i=0; i<totalChars; i++) resetCharState(document.getElementById(`char${i}`));
                 void document.body.offsetWidth; 
 
-                let newArrangement = generateRandomPermutation(totalChars);
-                let attempts = 0;
-                while(isSameArrangement(newArrangement) && attempts < 5) {
-                    newArrangement = generateRandomPermutation(totalChars);
-                    attempts++;
-                }
-
+                // ★ 중요: 아무도 안 움직이는 경우 방지 로직
                 let targetSlots = new Array(totalChars);
-                newArrangement.forEach((charID, slotIdx) => {
-                    targetSlots[charID] = slotIdx;
-                });
+                let isAllStationary = true; // 모두 멈춰있는가?
+
+                // 최소 한 명은 움직일 때까지 반복 생성
+                do {
+                    let newArrangement = generateRandomPermutation(totalChars);
+                    
+                    // targetSlots 계산
+                    newArrangement.forEach((charID, slotIdx) => {
+                        targetSlots[charID] = slotIdx;
+                    });
+
+                    // 검사: 현재 위치와 모두 똑같은지 확인
+                    isAllStationary = true;
+                    for(let i=0; i<totalChars; i++) {
+                        if (currentSlots[i] !== targetSlots[i]) {
+                            isAllStationary = false; // 움직임 발견!
+                            break; 
+                        }
+                    }
+                } while(isAllStationary);
+
+                if (recordMode) {
+                    moveHistory.push([...targetSlots]);
+                }
 
                 playMoveSound();
                 for(let i=0; i<totalChars; i++) {
@@ -480,11 +570,14 @@
 
         function resetCharState(wrapper) {
             wrapper.classList.remove('moving');
+            wrapper.classList.remove('lift'); // 리플레이 높이 버그 방지
+            
             const container = wrapper.querySelector('.character-container');
             const img = wrapper.querySelector('.character-img');
             container.classList.remove('rolling-right', 'rolling-left', 'jumping', 'flying');
             img.classList.remove('flipped');
             img.src = IMG_DEFAULT;
+            
             container.style.transform = '';
         }
 
@@ -503,12 +596,11 @@
         }
 
         function selectChar(index) {
-            if (!canSelect) return;
+            if (!canSelect || isReplaying) return;
             canSelect = false;
             hideBadges(); 
 
             const selectedWrapper = document.getElementById(`char${index}`);
-            // 결과 보여줄 땐 떡 다시 보이게 설정
             if(index === correctIndex) {
                  selectedWrapper.querySelector('.item').style.display = 'block';
             }
