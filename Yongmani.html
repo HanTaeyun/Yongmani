@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>떡 먹은 용만이 (Perfect Edition)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap');
+        
+        :root {
+            --primary-color: #ff6b6b;
+            --text-dark: #2d3436;
+        }
+
+        body {
+            font-family: 'Jua', sans-serif;
+            /* 배경 */
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-dark);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        h1 { 
+            margin: 0 0 10px 0;
+            font-family: 'Black Han Sans', sans-serif;
+            color: white;
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.1); 
+            font-size: 50px;
+            letter-spacing: 2px;
+            z-index: 10;
+            text-align: center;
+        }
+
+        /* --- 버튼 스타일 --- */
+        .modern-btn {
+            font-family: 'Jua', sans-serif;
+            font-size: 24px;
+            padding: 15px 35px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+            margin: 0 5px;
+        }
+        .modern-btn:active { transform: translateY(4px); box-shadow: none; }
+        
+        .btn-easy { background: #2ecc71; }
+        .btn-mid  { background: #f1c40f; }
+        .btn-hard { background: #ff6b6b; }
+        .btn-replay { background: #0984e3; }
+        .btn-home { background: #636e72; }
+
+        /* --- 오버레이 (시작/결과) --- */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        .card {
+            background: white;
+            padding: 40px 60px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .btn-group { display: flex; gap: 15px; margin-top: 30px; justify-content: center; }
+
+        /* --- 게임 스테이지 --- */
+        .stage-floor {
+            position: absolute;
+            bottom: 15%; /* 위치 조정 */
+            width: 80%;
+            height: 40px;
+            /* 글씨가 잘 보이도록 어두운 반투명 그림자로 변경 */
+            background: rgba(0, 0, 0, 0.15); 
+            border-radius: 50%;
+            filter: blur(10px);
+            z-index: 0;
+        }
+
+        .game-container {
+            display: flex;
+            position: relative;
+            height: 450px;
+            justify-content: center;
+            align-items: flex-end; 
+            padding-bottom: 50px;
+            z-index: 5;
+        }
+
+        /* --- 캐릭터 --- */
+        .wrapper {
+            position: absolute;
+            width: 150px; height: 200px;
+            cursor: pointer;
+            transition: transform 0.5s ease-in-out; 
+            z-index: 10;
+        }
+        .wrapper.moving { z-index: 100; transform: scale(1.1); } 
+
+        .character-container {
+            width: 100%; height: 100%;
+            position: relative;
+            z-index: 5; /* 떡보다 무조건 위 */
+            display: flex; align-items: flex-end; justify-content: center;
+        }
+
+        .character-img {
+            height: 100%; width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+        }
+        .character-img.flipped { transform: scaleX(-1); }
+
+        /* --- 떡 --- */
+        .item {
+            width: 70px; height: 70px;
+            position: absolute;
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 1; /* 캐릭터 뒤 */
+            display: none; /* 평소엔 아예 안 보임 */
+        }
+        .item img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 10px #ffeaa7);
+        }
+
+        /* --- 번호표 --- */
+        .number-badge {
+            position: absolute;
+            top: -45px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            width: 50px; height: 50px;
+            background: #fff200;
+            color: #2d3436;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Black Han Sans', sans-serif;
+            font-size: 26px;
+            border: 4px solid white;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+            z-index: 20;
+            transition: transform 0.3s;
+        }
+        .number-badge.show { transform: translateX(-50%) scale(1); }
+
+        /* --- 애니메이션 --- */
+        .wrapper.lift .character-container { transform: translateY(-160px); transition: transform 0.3s; }
+        
+        .character-container.rolling-right { animation: spinRight 0.5s linear forwards; }
+        @keyframes spinRight { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .character-container.rolling-left { animation: spinLeft 0.5s linear forwards; }
+        @keyframes spinLeft { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
+
+        .character-container.jumping { animation: jumpArc 0.5s ease-in-out forwards; }
+        @keyframes jumpArc { 0% { transform: translateY(0); } 50% { transform: translateY(-200px); } 100% { transform: translateY(0); } }
+
+        .character-container.flying { animation: superFly 0.5s ease-in-out forwards; }
+        @keyframes superFly { 
+            0% { transform: translateY(0) rotate(0deg); } 
+            50% { transform: translateY(-300px) rotate(10deg); } 
+            100% { transform: translateY(0) rotate(0deg); } 
+        }
+
+        /* 상태 메시지 */
+        #statusMessage {
+            margin-top: 10px;
+            font-size: 35px;
+            height: 50px;
+            font-family: 'Black Han Sans', sans-serif;
+            color: white;
+            /* 글씨 그림자 */
+            text-shadow: 2px 2px 0px #000, 0 0 10px rgba(0,0,0,0.5);
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="startScreen" class="overlay">
+        <div class="card">
+            <h1>난이도 선택</h1>
+            <p style="font-size: 22px; color: #636e72; margin-bottom: 20px;">용만이 몇 명과 대결할까요?</p>
+            <div class="btn-group">
+                <button class="modern-btn btn-easy" onclick="initGame(4)">하 (4명)</button>
+                <button class="modern-btn btn-mid" onclick="initGame(6)">중 (6명)</button>
+                <button class="modern-btn btn-hard" onclick="initGame(8)">상 (8명)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultScreen" class="overlay hidden">
+        <div class="card">
+            <h1 id="resultTitle" style="color: #2d3436; text-shadow: none;">결과</h1>
+            <p id="resultText" style="font-size: 24px; margin-bottom: 30px;">...</p>
+            <div class="btn-group">
+                <button class="modern-btn btn-replay" onclick="replayGame()">🔄 다시 하기</button>
+                <button class="modern-btn btn-home" onclick="location.reload()">🏠 처음으로</button>
+            </div>
+        </div>
+    </div>
+
+    <h1>떡 먹은 용만이를 찾아라!</h1>
+    
+    <div class="stage-floor"></div>
+    <div class="game-container" id="gameContainer"></div>
+
+    <div id="statusMessage">준비...</div>
+
+    <script>
+        // 설정
+        const CHAR_WIDTH = 150;
+        const GAP = 25; 
+        const MOVE_UNIT = CHAR_WIDTH + GAP;
+        const ANIM_TIME = 500;
+
+        // 이미지
+        const IMG_DEFAULT = 'https://i.ibb.co/ZrxbCq5/yongmani.png';        
+        const IMG_FLY     = 'https://i.ibb.co/vvVqQjcV/yongmani-fly.png';   
+        const IMG_JUMP    = 'https://i.ibb.co/B9FY3hb/yongmani-jump.png';   
+        const IMG_ROLL    = 'https://i.ibb.co/xSQ2tcRV/yongmani-roll.png';  
+        const IMG_TTEOK   = 'https://i.ibb.co/FkB0XC6z/pngtree-3d-mochi-illustration-png-image-10276564-1.png';
+
+        // 오디오
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, type, duration) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration + 0.1);
+        }
+
+        function playMoveSound() { 
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function playWinSound() { 
+            const notes = [523, 659, 784, 1046, 1318];
+            notes.forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.4), i * 120));
+        }
+
+        function playLoseSound() { 
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
+        }
+
+        // 상태 변수
+        let totalChars = 4;
+        let correctIndex = -1;
+        let isShuffling = false;
+        let canSelect = false;
+        let currentSlots = [];
+
+        function initGame(num) {
+            initAudio();
+            totalChars = num;
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            
+            const container = document.getElementById('gameContainer');
+            container.style.width = `${(totalChars * MOVE_UNIT) - GAP}px`; 
+            container.innerHTML = '';
+            
+            currentSlots = [];
+
+            for(let i=0; i<totalChars; i++) {
+                currentSlots.push(i);
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'wrapper';
+                wrapper.id = `char${i}`;
+                wrapper.style.left = `${i * MOVE_UNIT}px`;
+                wrapper.onclick = () => selectChar(i);
+
+                // 캐릭터
+                const charContainer = document.createElement('div');
+                charContainer.className = 'character-container';
+                const img = document.createElement('img');
+                img.src = IMG_DEFAULT;
+                img.className = 'character-img';
+                charContainer.appendChild(img);
+                
+                // 떡
+                const item = document.createElement('div');
+                item.className = 'item';
+                const tteokImg = document.createElement('img');
+                tteokImg.src = IMG_TTEOK;
+                item.appendChild(tteokImg);
+
+                // 번호표
+                const badge = document.createElement('div');
+                badge.className = 'number-badge';
+                
+                wrapper.appendChild(charContainer);
+                wrapper.appendChild(item);
+                wrapper.appendChild(badge);
+                container.appendChild(wrapper);
+            }
+            
+            startGameFlow();
+        }
+
+        function startGameFlow() {
+            const msg = document.getElementById('statusMessage');
+            msg.textContent = "떡의 위치를 기억하세요!";
+            msg.style.color = "white";
+            
+            isShuffling = true;
+            canSelect = false;
+            hideBadges(); 
+
+            correctIndex = Math.floor(Math.random() * totalChars);
+            const target = document.getElementById(`char${correctIndex}`);
+            
+            // 떡 보여주기 (Lift)
+            target.querySelector('.item').style.display = 'block';
+            target.classList.add('lift');
+            playMoveSound();
+
+            setTimeout(async () => {
+                target.classList.remove('lift');
+                
+                // 떡 숨기기 (0.3초 후 닫히면 안보이게 처리)
+                setTimeout(() => {
+                    target.querySelector('.item').style.display = 'none';
+                }, 300);
+
+                msg.textContent = "섞는 중... 눈을 크게 뜨세요!";
+                
+                const rounds = totalChars * 2 + 3; 
+                await shuffleChaos(rounds, ANIM_TIME + 50);
+
+                isShuffling = false;
+                canSelect = true;
+                msg.textContent = "누가 떡을 먹었을까요?";
+                
+                showBadges();
+            }, 1500);
+        }
+
+        function replayGame() {
+            initGame(totalChars);
+        }
+
+        async function shuffleChaos(rounds, waitTime) {
+            for(let r=0; r<rounds; r++) {
+                for(let i=0; i<totalChars; i++) resetCharState(document.getElementById(`char${i}`));
+                void document.body.offsetWidth; 
+
+                let newArrangement = generateRandomPermutation(totalChars);
+                let attempts = 0;
+                while(isSameArrangement(newArrangement) && attempts < 5) {
+                    newArrangement = generateRandomPermutation(totalChars);
+                    attempts++;
+                }
+
+                let targetSlots = new Array(totalChars);
+                newArrangement.forEach((charID, slotIdx) => {
+                    targetSlots[charID] = slotIdx;
+                });
+
+                playMoveSound();
+                for(let i=0; i<totalChars; i++) {
+                    const currentSlot = currentSlots[i];
+                    const nextSlot = targetSlots[i];
+                    if(currentSlot !== nextSlot) {
+                        applyMove(document.getElementById(`char${i}`), nextSlot);
+                    }
+                }
+                
+                currentSlots = [...targetSlots];
+                await new Promise(res => setTimeout(res, waitTime));
+            }
+            for(let i=0; i<totalChars; i++) resetCharState(document.getElementById(`char${i}`));
+        }
+
+        function applyMove(wrapper, targetSlot) {
+            const myOriginalId = parseInt(wrapper.id.replace('char', ''));
+            const currentSlot = currentSlots[myOriginalId];
+            const finalX = (targetSlot * MOVE_UNIT) - (myOriginalId * MOVE_UNIT);
+            const distance = Math.abs(targetSlot - currentSlot);
+            const direction = targetSlot > currentSlot ? 'right' : 'left';
+
+            wrapper.classList.add('moving');
+            wrapper.style.transform = `translateX(${finalX}px)`;
+
+            const container = wrapper.querySelector('.character-container');
+            const img = wrapper.querySelector('.character-img');
+
+            if (distance === 1) { 
+                img.src = IMG_ROLL;
+                if (direction === 'right') { container.classList.add('rolling-right'); img.classList.add('flipped'); } 
+                else { container.classList.add('rolling-left'); }
+            } else if (distance === 2) { 
+                img.src = IMG_JUMP; container.classList.add('jumping');
+            } else { 
+                img.src = IMG_FLY; container.classList.add('flying');
+                if (direction === 'right') img.classList.add('flipped');
+            }
+        }
+
+        function resetCharState(wrapper) {
+            wrapper.classList.remove('moving');
+            const container = wrapper.querySelector('.character-container');
+            const img = wrapper.querySelector('.character-img');
+            container.classList.remove('rolling-right', 'rolling-left', 'jumping', 'flying');
+            img.classList.remove('flipped');
+            img.src = IMG_DEFAULT;
+            container.style.transform = '';
+        }
+
+        function showBadges() {
+            for(let i=0; i<totalChars; i++) {
+                const wrapper = document.getElementById(`char${i}`);
+                const badge = wrapper.querySelector('.number-badge');
+                // 현재 슬롯 위치 + 1 번호
+                badge.textContent = currentSlots[i] + 1;
+                badge.classList.add('show');
+            }
+        }
+        
+        function hideBadges() {
+            const badges = document.querySelectorAll('.number-badge');
+            badges.forEach(b => b.classList.remove('show'));
+        }
+
+        function selectChar(index) {
+            if (!canSelect) return;
+            canSelect = false;
+            hideBadges(); 
+
+            const selectedWrapper = document.getElementById(`char${index}`);
+            // 결과 보여줄 땐 떡 다시 보이게 설정
+            if(index === correctIndex) {
+                 selectedWrapper.querySelector('.item').style.display = 'block';
+            }
+
+            selectedWrapper.classList.add('lift');
+            
+            const msg = document.getElementById('statusMessage');
+            const resultScreen = document.getElementById('resultScreen');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultText = document.getElementById('resultText');
+
+            if (index === correctIndex) {
+                playWinSound();
+                msg.style.color = '#55efc4';
+                msg.textContent = "🎉 정답입니다!";
+                
+                resultTitle.textContent = "성공! 🎉";
+                resultTitle.style.color = "#00b894";
+                resultText.innerHTML = `축하합니다!<br><b>${currentSlots[index] + 1}번 용만이</b>가 떡을 먹었네요.`;
+            } else {
+                playLoseSound();
+                msg.style.color = '#ff7675';
+                msg.textContent = "💨 땡! 틀렸습니다.";
+                
+                resultTitle.textContent = "실패... 😭";
+                resultTitle.style.color = "#d63031";
+                resultText.innerHTML = `아쉽네요.<br>떡은 <b>${currentSlots[correctIndex] + 1}번 용만이</b>에게 있었습니다.`;
+
+                setTimeout(() => {
+                    const correctWrapper = document.getElementById(`char${correctIndex}`);
+                    correctWrapper.querySelector('.item').style.display = 'block';
+                    correctWrapper.classList.add('lift');
+                }, 600);
+            }
+
+            setTimeout(() => {
+                resultScreen.classList.remove('hidden');
+            }, 1800);
+        }
+
+        function generateRandomPermutation(n) {
+            let arr = Array.from({length: n}, (_, i) => i);
+            for (let i = n - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+        function isSameArrangement(newArr) { return false; }
+    </script>
+</body>
+</html>
