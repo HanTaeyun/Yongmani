@@ -2,8 +2,9 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>떡 먹은 용만이 (Perfect Edition)</title>
+    <title>떡 먹은 용만이 (Final Fixed)</title>
     <style>
+        /* 폰트 임포트 */
         @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&display=swap');
         
         :root {
@@ -13,7 +14,7 @@
 
         body {
             font-family: 'Jua', sans-serif;
-            /* 배경 */
+            /* 배경: 화사한 솜사탕 그라데이션 */
             background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
             display: flex;
             flex-direction: column;
@@ -26,12 +27,13 @@
             user-select: none;
         }
 
-        h1 { 
+        /* 메인 게임 제목 (화면 상단) */
+        h1.main-title { 
             margin: 0 0 10px 0;
             font-family: 'Black Han Sans', sans-serif;
             color: white;
-            text-shadow: 4px 4px 0px rgba(0,0,0,0.1); 
-            font-size: 50px;
+            text-shadow: 4px 4px 0px rgba(0,0,0,0.15), 0 0 10px rgba(0,0,0,0.1); 
+            font-size: 55px;
             letter-spacing: 2px;
             z-index: 10;
             text-align: center;
@@ -79,20 +81,36 @@
             padding: 40px 60px;
             border-radius: 30px;
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 5px solid white; /* 흰색 테두리 */
         }
         @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* 카드 내부 텍스트 스타일 */
+        .card h1 {
+            font-family: 'Black Han Sans', sans-serif;
+            font-size: 45px;
+            margin: 0 0 15px 0;
+            /* 진한 색상 */
+            color: #2d3436; 
+            text-shadow: none;
+        }
+        .card p {
+            font-size: 24px;
+            color: #636e72;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
         
-        .btn-group { display: flex; gap: 15px; margin-top: 30px; justify-content: center; }
+        .btn-group { display: flex; gap: 15px; margin-top: 20px; justify-content: center; }
 
         /* --- 게임 스테이지 --- */
         .stage-floor {
             position: absolute;
-            bottom: 15%; /* 위치 조정 */
+            bottom: 15%; 
             width: 80%;
             height: 40px;
-            /* 글씨가 잘 보이도록 어두운 반투명 그림자로 변경 */
             background: rgba(0, 0, 0, 0.15); 
             border-radius: 50%;
             filter: blur(10px);
@@ -122,7 +140,7 @@
         .character-container {
             width: 100%; height: 100%;
             position: relative;
-            z-index: 5; /* 떡보다 무조건 위 */
+            z-index: 5; 
             display: flex; align-items: flex-end; justify-content: center;
         }
 
@@ -139,8 +157,8 @@
             position: absolute;
             bottom: 20px; left: 50%;
             transform: translateX(-50%);
-            z-index: 1; /* 캐릭터 뒤 */
-            display: none; /* 평소엔 아예 안 보임 */
+            z-index: 1; 
+            display: none; 
         }
         .item img {
             width: 100%; height: 100%;
@@ -194,7 +212,6 @@
             height: 50px;
             font-family: 'Black Han Sans', sans-serif;
             color: white;
-            /* 글씨 그림자 */
             text-shadow: 2px 2px 0px #000, 0 0 10px rgba(0,0,0,0.5);
             z-index: 20;
         }
@@ -204,8 +221,8 @@
 
     <div id="startScreen" class="overlay">
         <div class="card">
-            <h1>난이도 선택</h1>
-            <p style="font-size: 22px; color: #636e72; margin-bottom: 20px;">용만이 몇 명과 대결할까요?</p>
+            <h1>떡 먹은 용만이!</h1>
+            <p>👇 난이도를 선택하세요 👇</p>
             <div class="btn-group">
                 <button class="modern-btn btn-easy" onclick="initGame(4)">하 (4명)</button>
                 <button class="modern-btn btn-mid" onclick="initGame(6)">중 (6명)</button>
@@ -216,8 +233,8 @@
 
     <div id="resultScreen" class="overlay hidden">
         <div class="card">
-            <h1 id="resultTitle" style="color: #2d3436; text-shadow: none;">결과</h1>
-            <p id="resultText" style="font-size: 24px; margin-bottom: 30px;">...</p>
+            <h1 id="resultTitle">결과</h1>
+            <p id="resultText">...</p>
             <div class="btn-group">
                 <button class="modern-btn btn-replay" onclick="replayGame()">🔄 다시 하기</button>
                 <button class="modern-btn btn-home" onclick="location.reload()">🏠 처음으로</button>
@@ -225,7 +242,7 @@
         </div>
     </div>
 
-    <h1>떡 먹은 용만이를 찾아라!</h1>
+    <h1 class="main-title">떡 먹은 용만이를 찾아라!</h1>
     
     <div class="stage-floor"></div>
     <div class="game-container" id="gameContainer"></div>
@@ -382,7 +399,7 @@
             setTimeout(async () => {
                 target.classList.remove('lift');
                 
-                // 떡 숨기기 (0.3초 후 닫히면 안보이게 처리)
+                // 떡 숨기기
                 setTimeout(() => {
                     target.querySelector('.item').style.display = 'none';
                 }, 300);
@@ -475,7 +492,6 @@
             for(let i=0; i<totalChars; i++) {
                 const wrapper = document.getElementById(`char${i}`);
                 const badge = wrapper.querySelector('.number-badge');
-                // 현재 슬롯 위치 + 1 번호
                 badge.textContent = currentSlots[i] + 1;
                 badge.classList.add('show');
             }
